@@ -27,9 +27,25 @@ def _load_credentials():
         )
     if raw.startswith("{"):
         try:
-            return credentials.Certificate(json.loads(raw))
+            data = json.loads(raw)
         except json.JSONDecodeError as e:
             raise RuntimeError(f"FIREBASE_CREDENTIALS JSON noto'g'ri formatda: {e}") from e
+        # Xavfsiz tashxis — faqat email/loyiha, kalitning o'zi EMAS.
+        # "invalid_grant: Invalid JWT Signature" xatosi chiqsa, shu
+        # qatordagi email haqiqiy Firebase service-account bilan mos
+        # kelayotganini tekshiring.
+        log.info(
+            "Firebase: %s / %s (key_id %s...)",
+            data.get("client_email"), data.get("project_id"),
+            (data.get("private_key_id") or "")[:8],
+        )
+        pk = data.get("private_key", "")
+        if "\\n" in pk and "\n" not in pk.replace("\\n", ""):
+            log.warning(
+                "private_key qatorlari buzilgan ko'rinishda (\\n literal "
+                "holda qolgan) — Railway Variables'ga qayta joylashtiring"
+            )
+        return credentials.Certificate(data)
     return credentials.Certificate(raw)
 
 
