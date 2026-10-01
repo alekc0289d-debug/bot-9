@@ -13,24 +13,31 @@ log = logging.getLogger(__name__)
 _db = None
 
 
+def _load_credentials():
+    """FIREBASE_CREDENTIALS fayl yo'li YOKI JSON matni bo'lishi mumkin —
+    FIREBASE_CREDENTIALS_JSON ham xuddi shunday. Qaysi o'zgaruvchiga
+    qaysi turi qo'yilganidan qat'i nazar (odam xato qilishi mumkin),
+    matn '{' bilan boshlansa JSON deb, aks holda fayl yo'li deb olinadi.
+    """
+    raw = (settings.firebase_credentials_json or settings.firebase_credentials or "").strip()
+    if not raw:
+        raise RuntimeError(
+            "FIREBASE_CREDENTIALS yoki FIREBASE_CREDENTIALS_JSON "
+            "o'rnatilmagan — Railway Variables bo'limini tekshiring"
+        )
+    if raw.startswith("{"):
+        try:
+            return credentials.Certificate(json.loads(raw))
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"FIREBASE_CREDENTIALS JSON noto'g'ri formatda: {e}") from e
+    return credentials.Certificate(raw)
+
+
 def db():
     global _db
     if _db is None:
         if not firebase_admin._apps:
-            if settings.firebase_credentials_json:
-                # Railway va shunga o'xshash joylarda fayl yuklab
-                # bo'lmaydi — JSON to'g'ridan-to'g'ri matn sifatida
-                cred_data = json.loads(settings.firebase_credentials_json)
-                firebase_admin.initialize_app(credentials.Certificate(cred_data))
-            elif settings.firebase_credentials:
-                firebase_admin.initialize_app(
-                    credentials.Certificate(settings.firebase_credentials)
-                )
-            else:
-                raise RuntimeError(
-                    "FIREBASE_CREDENTIALS yoki FIREBASE_CREDENTIALS_JSON "
-                    "o'rnatilmagan — Railway Variables bo'limini tekshiring"
-                )
+            firebase_admin.initialize_app(_load_credentials())
         _db = firestore.client()
     return _db
 
