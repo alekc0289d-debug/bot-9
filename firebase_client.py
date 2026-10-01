@@ -29,7 +29,7 @@ def db():
             else:
                 raise RuntimeError(
                     "FIREBASE_CREDENTIALS yoki FIREBASE_CREDENTIALS_JSON "
-                    "o'rnatilmagan"
+                    "o'rnatilmagan — Railway Variables bo'limini tekshiring"
                 )
         _db = firestore.client()
     return _db
