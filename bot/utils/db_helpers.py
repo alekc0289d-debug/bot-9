@@ -27,6 +27,19 @@ def get_student(student_id: str) -> dict | None:
     return None
 
 
+# resolve_user har bir xabarda (LangMiddleware, RoleIs filtri, va har bir
+# handler) chaqiriladi va ichida 4 tagacha ketma-ket Firestore so'rovi
+# qilishi mumkin. Firebase sekinlashsa (masalan noto'g'ri kalit tufayli
+# qayta-qayta urinish bo'lsa), bu BUTUN botni bir necha daqiqaga
+# "qotirib" qo'yadi — chunki har bir foydalanuvchi xabari shu bitta
+# funksiyadan sekin-sekin o'tadi. Shu sababli natija qisqa muddat
+# (15 soniya) xotirada saqlanadi — xatolik yoki sekinlik bo'lsa ham,
+# bitta foydalanuvchi ketma-ket necha marta yozsa ham faqat bitta
+# haqiqiy so'rov ketadi.
+_resolve_cache: dict = {}
+_RESOLVE_TTL = 15  # soniya
+
+
 def resolve_user(tg_id: int) -> dict | None:
     """
     Telegram ID bo'yicha foydalanuvchi va uning roli.
@@ -35,6 +48,10 @@ def resolve_user(tg_id: int) -> dict | None:
     -> users kolleksiyasi. Hech biri topilmasa va tg_id ADMIN_TG_ID bo'lsa,
     admin qaytariladi. Saqlangan til avtomatik o'rnatiladi.
     """
+    cached = _resolve_cache.get(tg_id)
+    if cached and (datetime.now(timezone.utc) - cached[0]).total_seconds() < _RESOLVE_TTL:
+        return cached[1]
+
     try:
         client = db()
         found = None
@@ -58,13 +75,26 @@ def resolve_user(tg_id: int) -> dict | None:
                     set_user_lang(tg_id, found[lang_key])
                 break
         if found:
+            _resolve_cache[tg_id] = (datetime.now(timezone.utc), found)
             return found
     except Exception as e:
         log.error("resolve_user xato: %s", e)
+        # DIQQAT: bu yerda qaytarib YUBORMAYMIZ — pastdagi ADMIN_TG_ID
+        # zaxira tekshiruvi baribir ishlashi kerak (Firestore butunlay
+        # ishlamay qolganda ham admin botga kira olishi uchun).
 
     if ADMIN_TG_ID and tg_id == ADMIN_TG_ID:
-        return {"id": f"admin_{tg_id}", "fullName": "Admin",
-                "role": "admin", "tgId": tg_id}
+        result = {"id": f"admin_{tg_id}", "fullName": "Admin",
+                  "role": "admin", "tgId": tg_id}
+        # Admin zaxira natijasini KESHLAMAYMIZ — agar Firestore tiklansa,
+        # keyingi xabarda haqiqiy hujjat (masalan to'g'ri fullName) bilan
+        # almashtirilishi uchun.
+        return result
+    # Topilmadi (va bu admin ham emas) — QISQA muddat keshlaymiz, aks
+    # holda shu foydalanuvchining har bir xabari Firestore ishlamay
+    # qolganda ham to'liq 4 ta so'rovni qayta-qayta sinab, botni
+    # sekinlashtiraveradi.
+    _resolve_cache[tg_id] = (datetime.now(timezone.utc), None)
     return None
 
 
