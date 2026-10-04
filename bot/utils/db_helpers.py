@@ -195,13 +195,24 @@ def get_subjects(student_id: str) -> list:
 
 
 def get_schedule(class_id: str) -> list:
-    """Jadval — sinf bo'yicha."""
+    """Jadval — sinf bo'yicha.
+
+    Ikki xil saqlash shaklini qo'llab-quvvatlaydi: bitta hujjat ichida
+    "lessons" massivi, YOKI har bir dars alohida hujjat ("classId" maydoni
+    bilan, eMaktab sync va seed_schedule.py shu tarzda yozadi). Avval
+    eskisi bor-u BO'SH (masalan loyihada qolib ketgan bo'sh "9-A" hujjati)
+    bo'lsa ham haqiqiy darslarni ko'rmay qolmasligi uchun — bitta hujjat
+    FAQAT ichida haqiqatan dars bo'lsa qabul qilinadi, aks holda pastdagi
+    so'rovga o'tiladi.
+    """
     try:
         client = db()
         doc = client.collection("schedule").document(class_id).get()
         if doc.exists:
             d = doc.to_dict()
-            return d.get("lessons") or d.get("items") or []
+            lessons = d.get("lessons") or d.get("items") or []
+            if lessons:
+                return lessons
         snap = (client.collection("schedule")
                 .where("classId", "==", class_id).stream())
         # Har o'quvchida jadval nusxasi bor — takrorlarni olib tashlaymiz
