@@ -197,13 +197,14 @@ def get_subjects(student_id: str) -> list:
 def get_schedule(class_id: str) -> list:
     """Jadval — sinf bo'yicha.
 
-    Ikki xil saqlash shaklini qo'llab-quvvatlaydi: bitta hujjat ichida
-    "lessons" massivi, YOKI har bir dars alohida hujjat ("classId" maydoni
-    bilan, eMaktab sync va seed_schedule.py shu tarzda yozadi). Avval
-    eskisi bor-u BO'SH (masalan loyihada qolib ketgan bo'sh "9-A" hujjati)
-    bo'lsa ham haqiqiy darslarni ko'rmay qolmasligi uchun — bitta hujjat
-    FAQAT ichida haqiqatan dars bo'lsa qabul qilinadi, aks holda pastdagi
-    so'rovga o'tiladi.
+    Bir nechta saqlash shaklini qo'llab-quvvatlaydi, chunki loyihada
+    sinf maydoni turli joyda turlicha nomlangan ekan ("classId" yoki
+    "className"): bitta hujjat ichida "lessons" massivi, YOKI har bir
+    dars alohida hujjat ("classId" YOKI "className" maydoni bilan).
+    Avval eskisi bor-u BO'SH (masalan loyihada qolib ketgan bo'sh "9-A"
+    hujjati) bo'lsa ham haqiqiy darslarni ko'rmay qolmasligi uchun —
+    bitta hujjat FAQAT ichida haqiqatan dars bo'lsa qabul qilinadi, aks
+    holda pastdagi so'rovlarga o'tiladi.
     """
     try:
         client = db()
@@ -213,19 +214,23 @@ def get_schedule(class_id: str) -> list:
             lessons = d.get("lessons") or d.get("items") or []
             if lessons:
                 return lessons
-        snap = (client.collection("schedule")
-                .where("classId", "==", class_id).stream())
-        # Har o'quvchida jadval nusxasi bor — takrorlarni olib tashlaymiz
+
+        # Har o'quvchida jadval nusxasi bor — takrorlarni olib tashlaymiz.
+        # "classId" VA "className" ikkalasi bo'yicha ham qidiramiz, chunki
+        # loyihaning turli qismlari turli nom ishlatgan bo'lishi mumkin.
         seen, out = set(), []
-        for s in snap:
-            row = {"id": s.id, **s.to_dict()}
-            key = (row.get("dayOfWeek"), row.get("lessonNumber"),
-                   row.get("subject"), row.get("teacher"),
-                   row.get("startTime"))
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append(row)
+        for field in ("classId", "className"):
+            snap = (client.collection("schedule")
+                    .where(field, "==", class_id).stream())
+            for s in snap:
+                row = {"id": s.id, **s.to_dict()}
+                key = (row.get("dayOfWeek"), row.get("lessonNumber"),
+                       row.get("subject"), row.get("teacher"),
+                       row.get("startTime"))
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(row)
         return out
     except Exception as e:
         log.error("get_schedule xato: %s", e)
