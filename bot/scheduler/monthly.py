@@ -20,9 +20,11 @@ from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+from aiogram.exceptions import TelegramForbiddenError
+
 from bot.config import ADMIN_TG_ID
 from bot.keyboards import inline
-from bot.utils.db_helpers import get_settings, get_monthly_points, get_student
+from bot.utils.db_helpers import get_settings, get_monthly_points, get_student, mark_bot_blocked
 from bot.utils.helpers import now_tashkent
 
 log = logging.getLogger(__name__)
@@ -102,6 +104,9 @@ async def find_monthly_winner():
                     f"🎉 Tabriklaymiz! Siz <b>{month}</b> oyining eng faol "
                     f"o'quvchisi bo'ldingiz!" + WINNER_NOTE,
                 )
+            except TelegramForbiddenError:
+                mark_bot_blocked(int(winner_tg), True)
+                log.info("%s botni bloklagan — belgilandi", winner_tg)
             except Exception as e:
                 log.error("monthly winner o'quvchiga yuborilmadi: %s", e)
 

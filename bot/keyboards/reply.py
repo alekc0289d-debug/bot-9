@@ -49,7 +49,10 @@ def student_menu(tg_id: int):
                 KeyboardButton(text=t("btn_achievements", tg_id=tg_id)),
             ],
             [
+                KeyboardButton(text=t("btn_daily_grades", tg_id=tg_id)),
                 KeyboardButton(text=t("btn_ai", tg_id=tg_id)),
+            ],
+            [
                 KeyboardButton(text=t("btn_settings", tg_id=tg_id)),
             ],
         ],

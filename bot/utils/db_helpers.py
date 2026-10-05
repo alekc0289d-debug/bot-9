@@ -98,6 +98,34 @@ def resolve_user(tg_id: int) -> dict | None:
     return None
 
 
+def mark_bot_blocked(tg_id: int, blocked: bool) -> None:
+    """
+    Foydalanuvchi botni bloklagan/blokdan chiqargan paytda chaqiriladi
+    (bot/handlers/block_tracking.py dagi my_chat_member hodisasidan, va
+    xabar yuborishda "Forbidden" xatosi chiqqanda ham — ikkalasi ham
+    bir xil holatni belgilaydi, Telegram hodisasi qandaydir sabab bilan
+    kelmay qolgan taqdirda ham aniqlansin uchun).
+
+    O'quvchining o'zi uchun 'botBlocked', ota-onasi uchun
+    'parentBotBlocked' (xuddi shu hujjatda, chunki ota-ona alohida
+    hujjatga ega emas), xodim/admin uchun 'botBlocked' maydoniga
+    yoziladi.
+    """
+    try:
+        client = db()
+        for coll, field, flag in (
+            ("students", "tgId", "botBlocked"),
+            ("students", "parentTgId", "parentBotBlocked"),
+            ("staff", "tgId", "botBlocked"),
+            ("users", "tgId", "botBlocked"),
+        ):
+            for d in (client.collection(coll)
+                      .where(field, "==", tg_id).limit(1).stream()):
+                d.reference.set({flag: blocked}, merge=True)
+    except Exception as e:
+        log.error("mark_bot_blocked xato: %s", e)
+
+
 def save_user_lang(tg_id: int, lang: str) -> None:
     """Tanlangan tilni Firestore'ga yozish (qayta ishga tushganda yo'qolmasligi uchun)."""
     try:

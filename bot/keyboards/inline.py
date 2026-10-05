@@ -135,3 +135,20 @@ def premium_actions(student_id: str):
             )],
         ]
     )
+
+
+def day_picker():
+    """Hafta kunini tanlash — "Kunlik baholar" uchun (faqat dars kunlari, Dush-Shan)."""
+    from bot.utils.helpers import days_uz
+    days = days_uz()[:6]  # Dushanba..Shanba (Yakshanba — dars yo'q)
+    rows = []
+    for i in range(0, len(days), 2):
+        row = [
+            InlineKeyboardButton(text=days[i], callback_data=f"dgrades:{i}")
+        ]
+        if i + 1 < len(days):
+            row.append(
+                InlineKeyboardButton(text=days[i + 1], callback_data=f"dgrades:{i+1}")
+            )
+        rows.append(row)
+    return InlineKeyboardMarkup(inline_keyboard=rows)

@@ -80,7 +80,7 @@ async def cmd_help(message: Message):
 # ============================================================
 # GURUHDA ISHLAYDIGAN BUYRUQLAR (rolga bog'liq emas — sinf umumiy)
 # ============================================================
-@router.message(Command("jadval"))
+@router.message(Command("jadval"), F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}))
 async def cmd_group_schedule(message: Message):
     s = get_settings()
     class_id = s.get("className", "9-A")
@@ -108,7 +108,7 @@ async def cmd_group_schedule(message: Message):
     await message.answer(text)
 
 
-@router.message(Command("reyting"))
+@router.message(Command("reyting"), F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}))
 async def cmd_group_rating(message: Message):
     s = get_settings()
     rating = get_rating(s.get("className", "9-A"))

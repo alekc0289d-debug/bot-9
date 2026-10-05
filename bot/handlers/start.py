@@ -4,7 +4,8 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from aiogram import Router, F
+from aiogram import Bot, Router, F
+from aiogram.enums import ChatType
 from aiogram.filters import CommandStart, CommandObject
 from aiogram.types import Message, CallbackQuery
 
@@ -23,7 +24,19 @@ router = Router()
 # /start
 # ============================================================
 @router.message(CommandStart())
-async def cmd_start(message: Message, command: CommandObject):
+async def cmd_start(message: Message, command: CommandObject, bot: Bot):
+    # Guruhda /start yozilsa — shaxsiy menyu (reply-keyboard) guruhga
+    # chiqib ketmasligi kerak, bu boshqa a'zolarga ham ko'rinadi va
+    # tartibsizlik qiladi. Buning o'rniga shaxsiy chatga yo'naltiramiz.
+    if message.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+        me = await bot.get_me()
+        await message.answer(
+            "👋 Botni shaxsiy chatda ishga tushiring — "
+            "guruhda shaxsiy menyu ko'rsatilmaydi.",
+            reply_markup=inline.intro_start_button(me.username),
+        )
+        return
+
     tg_id = message.from_user.id
     name = message.from_user.full_name
 

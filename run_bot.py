@@ -8,7 +8,7 @@ import asyncio
 
 from bot.instance import bot, dp, log
 from bot.commands import setup_commands
-from bot.handlers import start, menu, admin, group, ai, student, parent, teacher
+from bot.handlers import start, menu, admin, group, ai, student, parent, teacher, block_tracking
 from bot.scheduler import daily, daily_grades, weekly, monthly
 from bot.utils.lang_mw import LangMiddleware
 
@@ -22,6 +22,7 @@ dp.include_router(parent.router)
 dp.include_router(teacher.router)
 dp.include_router(ai.router)
 dp.include_router(group.router)
+dp.include_router(block_tracking.router)
 
 
 async def main():

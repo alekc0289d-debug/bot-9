@@ -24,7 +24,12 @@ SCHOOL_NAME = "Maktab"
 CLASS_NAME = os.getenv("CLASS_ID", "9-A")
 
 # AI
-GROQ_MODEL = "llama-3.3-70b-versatile"
+# llama-3.3-70b-versatile Groq tomonidan 2026-08-16 da butunlay
+# o'chirildi — shuning uchun AI javob bermay qolgan edi. Yangi tavsiya
+# qilingan model: openai/gpt-oss-120b. Kelajakda Groq yana model
+# o'zgartirsa, kodga tegmasdan GROQ_MODEL muhit o'zgaruvchisi orqali
+# yangilash mumkin.
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 AI_DAILY_LIMIT = 20
 
 # Bot versiyasi

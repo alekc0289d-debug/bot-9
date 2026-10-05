@@ -125,12 +125,18 @@ def _generate(tg_id: int, question: str) -> str:
     messages.extend(_get_history(tg_id, limit=6))
     messages.append({"role": "user", "content": question})
 
-    resp = client.chat.completions.create(
+    kwargs = dict(
         model=GROQ_MODEL,
         messages=messages,
         temperature=0.7,
         max_tokens=800,
     )
+    # gpt-oss modellari reasoning_effort talab qiladi ("low"/"medium"/
+    # "high"); boshqa modellarda bu parametr e'tiborsiz qoldiriladi,
+    # shuning uchun hech kimga zarar qilmaydi.
+    if "gpt-oss" in GROQ_MODEL:
+        kwargs["reasoning_effort"] = "low"
+    resp = client.chat.completions.create(**kwargs)
     return resp.choices[0].message.content
 
 

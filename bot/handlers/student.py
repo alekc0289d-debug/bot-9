@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 
 from bot.locales.loader import t
 from bot.utils.btn_texts import variants
@@ -30,6 +30,7 @@ ATT_BTNS = variants("btn_attendance")
 HW_BTNS = variants("btn_homework")
 RATE_BTNS = variants("btn_rating")
 ACH_BTNS = variants("btn_achievements")
+DAILY_GRADES_BTNS = variants("btn_daily_grades")
 
 _ROLE = RoleIs("student")
 
@@ -247,6 +248,54 @@ async def show_rating(message: Message):
         text += f"{prefix} {r['fullName']} — <b>{r['avg']}</b>{me}\n"
 
     await message.answer(text)
+
+
+# ============================================================
+# KUNLIK BAHOLAR — istalgan hafta kunini tanlab ko'rish
+# (avtomatik 13:00 xabari faqat BUGUNGI kunni ko'rsatadi; yakshanba
+# kuni dars yo'q, shuning uchun o'quvchi o'tgan kunlarni qo'lda
+# tanlab ko'rishi uchun shu bo'lim kerak)
+# ============================================================
+@router.message(F.text.in_(DAILY_GRADES_BTNS), _ROLE)
+async def daily_grades_pick_day(message: Message):
+    from bot.keyboards.inline import day_picker
+    await message.answer(t("pick_day", tg_id=message.from_user.id),
+                         reply_markup=day_picker())
+
+
+@router.callback_query(F.data.startswith("dgrades:"))
+async def daily_grades_show_day(callback: CallbackQuery):
+    from bot.scheduler.daily_grades import _subjects_for_day, _build_text
+    from bot.utils.db_helpers import week_start
+
+    tg_id = callback.from_user.id
+    st = get_student_by_tg(tg_id)
+    if not st:
+        await callback.answer("❌ Siz topilmadingiz.", show_alert=True)
+        return
+
+    idx = int(callback.data.split(":")[1])
+    day_name = days_uz()[idx]
+    date = week_start() + timedelta(days=idx)
+    date_str = date.strftime("%Y-%m-%d")
+    class_id = st.get("classId", "9-A")
+
+    subjects = _subjects_for_day(class_id, day_name)
+    if not subjects:
+        await callback.message.edit_text(
+            f"📅 <b>{day_name}, {date.strftime('%d.%m.%Y')}</b>\n\n"
+            "Bu kuni jadvalda dars yo'q."
+        )
+        await callback.answer()
+        return
+
+    text = _build_text(
+        st["id"], subjects, date_str, tg_id,
+        date_label=date.strftime("%d.%m.%Y"),
+        title=f"📅 <b>{day_name}, {date.strftime('%d.%m.%Y')}</b>",
+    )
+    await callback.message.edit_text(text)
+    await callback.answer()
 
 
 # ============================================================

@@ -70,5 +70,7 @@
   "btn_admin_schedule": "📅 Sinf jadvali (admin)",
   "btn_admin_rating": "🏆 Sinf reytingi",
   "no_grade_today": "baho yo'q",
-  "help_group": "ℹ️ <b>Guruh buyruqlari</b>\n\n• /jadval — haftalik jadval\n• /reyting — sinf reytingi\n• /menu — botni shaxsiy chatda ochish"
+  "help_group": "ℹ️ <b>Guruh buyruqlari</b>\n\n• /jadval — haftalik jadval\n• /reyting — sinf reytingi\n• /menu — botni shaxsiy chatda ochish",
+  "btn_daily_grades": "📅 Kunlik baholar",
+  "pick_day": "Qaysi kunni ko'rmoqchisiz?"
 }
