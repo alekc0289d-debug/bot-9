@@ -1,6 +1,5 @@
 """Bot konfiguratsiyasi."""
 
-import base64
 import json
 import os
 from pathlib import Path
@@ -23,10 +22,6 @@ ADMIN_TG_ID = int(os.getenv("ADMIN_TG_ID") or 0)
 # AI (Groq)
 # ============================================================
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-
-# llama-3.3-70b-versatile Groq tomonidan 2026-08-16 da butunlay
-# o'chirildi. Yangi tavsiya qilingan model: openai/gpt-oss-120b.
-# Kelajakda modelni kodga tegmasdan GROQ_MODEL env orqali o'zgartirish mumkin.
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 AI_DAILY_LIMIT = int(os.getenv("AI_DAILY_LIMIT", "20"))
 
@@ -34,68 +29,36 @@ AI_DAILY_LIMIT = int(os.getenv("AI_DAILY_LIMIT", "20"))
 # ============================================================
 # Firebase
 # ------------------------------------------------------------
-# Endi credentials env orqali beriladi. Ikki xil usul qo'llab-quvvatlanadi:
-#
-#   1) FIREBASE_CREDENTIALS_JSON — service account JSON ning TO'LIQ matni
-#      (bir qatorli yoki ko'p qatorli string).
-#
-#   2) FIREBASE_CREDENTIALS_B64  — o'sha JSON ning base64 ko'rinishi
-#      (Docker/Railway/Render kabi platformalarda ko'p qatorli string
-#       muammo bo'lganda qulay).
-#
-# Agar ikkalasi ham bo'sh bo'lsa, FIREBASE_CREDENTIALS_FILE orqali
-# fayl yo'lini ko'rsatish ham mumkin (fallback).
+# .env da FIREBASE_CREDENTIALS_JSON (to'liq JSON matni, bir qatorli)
+# bo'lishi kerak. Ixtiyoriy: FIREBASE_DB_URL.
 # ============================================================
 FIREBASE_CREDENTIALS_JSON = os.getenv("FIREBASE_CREDENTIALS_JSON", "").strip()
-FIREBASE_CREDENTIALS_B64 = os.getenv("FIREBASE_CREDENTIALS_B64", "").strip()
-FIREBASE_CREDENTIALS_FILE = os.getenv(
-    "FIREBASE_CREDENTIALS_FILE",
-    str(BASE_DIR.parent / "firebase_key.json"),
-)
-
 FIREBASE_DB_URL = os.getenv("FIREBASE_DB_URL", "")
 
 
 def get_firebase_credentials() -> dict:
     """Firebase service account ma'lumotlarini dict ko'rinishida qaytaradi.
 
-    Ustuvorlik:
-      1) FIREBASE_CREDENTIALS_B64  (base64 -> JSON)
-      2) FIREBASE_CREDENTIALS_JSON (to'g'ridan-to'g'ri JSON matni)
-      3) FIREBASE_CREDENTIALS_FILE (fayldan o'qish)
-
-    Topilmasa — FileNotFoundError / ValueError ko'taradi.
+    Avval FIREBASE_CREDENTIALS_JSON (env) dan o'qiydi. Agar u bo'sh bo'lsa,
+    loyiha ildizidagi firebase_key.json faylidan o'qishga urinadi (fallback).
     """
-    # 1) base64
-    if FIREBASE_CREDENTIALS_B64:
-        try:
-            decoded = base64.b64decode(FIREBASE_CREDENTIALS_B64).decode("utf-8")
-            return json.loads(decoded)
-        except Exception as e:
-            raise ValueError(
-                f"FIREBASE_CREDENTIALS_B64 ni decode qilib bo'lmadi: {e}"
-            )
+    raw = FIREBASE_CREDENTIALS_JSON
 
-    # 2) to'g'ridan-to'g'ri JSON matni
-    if FIREBASE_CREDENTIALS_JSON:
-        try:
-            return json.loads(FIREBASE_CREDENTIALS_JSON)
-        except Exception as e:
-            raise ValueError(
-                f"FIREBASE_CREDENTIALS_JSON noto'g'ri JSON: {e}"
-            )
+    if not raw:
+        # Fallback: fayl orqali
+        path = BASE_DIR.parent / "firebase_key.json"
+        if path.is_file():
+            with path.open("r", encoding="utf-8") as f:
+                return json.load(f)
+        raise ValueError(
+            "FIREBASE_CREDENTIALS_JSON env topilmadi va firebase_key.json "
+            "fayli ham mavjud emas."
+        )
 
-    # 3) fayldan o'qish (fallback)
-    path = Path(FIREBASE_CREDENTIALS_FILE)
-    if path.is_file():
-        with path.open("r", encoding="utf-8") as f:
-            return json.load(f)
-
-    raise FileNotFoundError(
-        "Firebase credentials topilmadi. .env da FIREBASE_CREDENTIALS_B64 "
-        "yoki FIREBASE_CREDENTIALS_JSON ni o'rnating, yoki "
-        f"FIREBASE_CREDENTIALS_FILE yo'lini to'g'rilang ({path})."
-    )
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"FIREBASE_CREDENTIALS_JSON noto'g'ri JSON: {e}")
 
 
 # ============================================================
@@ -125,17 +88,35 @@ BOT_VERSION = "1.0.0"
 # ============================================================
 # settings obyekti
 # ------------------------------------------------------------
-# firebase_client.py va boshqa fayllar `from config import settings`
-# ishlatadi. Quyidagi wrapper yuqoridagi modul o'zgaruvchilariga
-# settings.XXX ko'rinishida murojaat qilish imkonini beradi:
-#   settings.BOT_TOKEN, settings.FIREBASE_DB_URL, ...
+# Quyidagi wrapper orqali:
+#   settings.BOT_TOKEN
+#   settings.FIREBASE_CREDENTIALS_JSON
+#   settings.firebase_credentials_json   (kichik harf ham ishlaydi)
+# kabi murojaatlar ishlaydi. Agar modul o'zgaruvchisida topilmasa,
+# to'g'ridan-to'g'ri os.environ dan ham qidiradi.
 # ============================================================
 class _Settings:
     def __getattr__(self, name: str):
-        try:
+        # 1) modul o'zgaruvchisi (aynan nom bilan)
+        if name in globals():
             return globals()[name]
-        except KeyError:
-            raise AttributeError(f"config has no setting: {name}")
+
+        # 2) katta harfli variant
+        upper = name.upper()
+        if upper in globals():
+            return globals()[upper]
+
+        # 3) env dan (katta harf bilan)
+        val = os.getenv(upper)
+        if val is not None:
+            return val
+
+        # 4) env dan (aynan shu nom bilan)
+        val = os.getenv(name)
+        if val is not None:
+            return val
+
+        raise AttributeError(f"config has no setting: {name}")
 
 
 settings = _Settings()
