@@ -79,6 +79,38 @@ def _today_subjects(class_id: str) -> list:
     return _subjects_for_day(class_id, today_uz())
 
 
+def today_grades_text(student: dict, tg_id: int, title: str | None = None) -> str:
+    """
+    'Baholarim' tugmasi uchun — har doim BUGUNGI kunning fan-fan
+    baholarini ko'rsatadi (kundalik 13:00 xabari bilan bir xil format),
+    pastida esa qisqa umumiy statistika. Avval bu tugma "oxirgi 10 ta
+    baho" degan tartibsiz ro'yxatni ko'rsatardi — endi aniq, "bugun
+    nima bo'ldi" savoliga javob beradi.
+    """
+    from bot.utils.db_helpers import calc_student_stats
+
+    class_id = student.get("classId", "9-A")
+    today_name = today_uz()
+    date_str = now_tashkent().strftime("%Y-%m-%d")
+
+    subjects = _subjects_for_day(class_id, today_name)
+    name = student.get("fullName", "—")
+    header = title or f"📊 <b>{name} — bugungi baholar</b>"
+
+    if not subjects:
+        text = f"{header}\n\n Bugun ({today_name}) jadvalda dars yo'q."
+    else:
+        text = _build_text(student["id"], subjects, date_str, tg_id, title=header)
+
+    stats = calc_student_stats(student["id"])
+    if stats["count"]:
+        text += (
+            f"\n\n📈 Umumiy o'rtacha: <b>{stats['avg']}</b> "
+            f"({stats['count']} ta baho)"
+        )
+    return text
+
+
 def _build_text(student_id: str, subjects: list, date_str: str, tg_id: int,
                  date_label: str | None = None, title: str | None = None) -> str:
     day_grades = [g for g in get_grades(student_id, limit=200)
@@ -147,6 +179,60 @@ async def daily_grades_report():
         log.error("daily_grades_report xato: %s", e)
 
 
+async def unconnected_warning():
+    """
+    Soat 13:00 — botga ulanmagan o'quvchi/ota-onalar haqida sinf
+    guruhiga ogohlantirish, va agar o'quvchi/ona telefoni bir xil
+    bo'lsa (ma'lumot kiritishda xato bo'lishi mumkin), shaxsiy
+    chatda ogohlantirish.
+    """
+    try:
+        s = get_settings()
+        class_id = s.get("className", "9-A")
+        gid = s.get("classGroupId")
+        students = get_all_students(class_id)
+
+        # 1) Botga ulanmaganlar — guruhga
+        not_connected = [
+            st for st in students if not st.get("tgId") or not st.get("parentTgId")
+        ]
+        if gid and not_connected:
+            lines = ["⚠️ <b>Botga hali ulanmaganlar:</b>", ""]
+            for st in not_connected:
+                missing = []
+                if not st.get("tgId"):
+                    missing.append("o'quvchi")
+                if not st.get("parentTgId"):
+                    missing.append("ota-ona")
+                lines.append(f"• {st.get('fullName', '—')} — {', '.join(missing)}")
+            lines.append("")
+            lines.append("Iltimos, botni ishga tushiring va ro'yxatdan o'ting.")
+            try:
+                await _get_bot().send_message(int(gid), "\n".join(lines))
+            except Exception as e:
+                log.error("unconnected_warning guruhga yuborilmadi: %s", e)
+
+        # 2) O'quvchi va onaning telefoni bir xil — shaxsiy ogohlantirish
+        bot = _get_bot()
+        for st in students:
+            phone = (st.get("phone") or "").strip()
+            mother_phone = (st.get("motherPhone") or "").strip()
+            if not phone or not mother_phone or phone != mother_phone:
+                continue
+            warn = (
+                "⚠️ Ma'lumotlaringizda xato topildi: o'quvchi va "
+                "onaning telefon raqami bir xil ko'rsatilgan.\n"
+                "Iltimos, ma'lumotlarni to'g'irlang (admin bilan bog'laning)."
+            )
+            for tg_id in (st.get("tgId"), st.get("parentTgId")):
+                if not tg_id:
+                    continue
+                await _safe_send(bot, tg_id, warn)
+                await asyncio.sleep(0.05)
+    except Exception as e:
+        log.error("unconnected_warning xato: %s", e)
+
+
 def start():
     global _scheduler
     if _scheduler:
@@ -155,6 +241,8 @@ def start():
     _scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
     _scheduler.add_job(daily_grades_report, CronTrigger(hour=13, minute=0),
                        id="daily_grades_report")
+    _scheduler.add_job(unconnected_warning, CronTrigger(hour=13, minute=5),
+                       id="unconnected_warning")
     _scheduler.start()
     log.info("✅ Kundalik baholar scheduleri ishga tushdi")
     return _scheduler

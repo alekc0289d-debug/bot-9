@@ -25,7 +25,6 @@ PARENT_GRADES = variants("btn_parent_grades")
 PARENT_ATT = variants("btn_parent_attendance")
 PARENT_SCHED = variants("btn_parent_schedule")
 PARENT_RATE = variants("btn_parent_rating")
-PARENT_PAY = variants("btn_payments")
 PARENT_CONTACT = variants("btn_contact")
 
 _ROLE = RoleIs("parent")
@@ -99,24 +98,9 @@ async def show_child_grades(message: Message):
         await message.answer("❌ Farzandingiz topilmadi.")
         return
 
-    grades = get_grades(st["id"], limit=100)
-    if not grades:
-        await message.answer("📭 Baholar yo'q.")
-        return
-
-    stats = calc_student_stats(st["id"])
-    text = (
-        f"📊 <b>{st.get('fullName')} — Baholar</b>\n\n"
-        f"📈 O'rtacha: <b>{stats['avg']}</b>\n\n"
-        "<b>🕒 Oxirgi 10 ta:</b>\n"
-    )
-    for g in grades[:10]:
-        emoji = score_emoji(g.get("score"))
-        typ = get_type_label(g.get("markType"))
-        text += (f"{emoji} {g.get('date')} | {g.get('subject')} — "
-                 f"<b>{format_score(g)}</b> ({typ})\n")
-
-    await message.answer(text)
+    from bot.scheduler.daily_grades import today_grades_text
+    title = f"📊 <b>{st.get('fullName')} — bugungi baholar</b>"
+    await message.answer(today_grades_text(st, message.from_user.id, title=title))
 
 
 # ============================================================
@@ -230,23 +214,6 @@ async def show_child_rating(message: Message):
         text += f"{prefix} {r['fullName']} — <b>{r['avg']}</b>{me}\n"
 
     await message.answer(text)
-
-
-# ============================================================
-# TO'LOV
-# ============================================================
-@router.message(F.text.in_(PARENT_PAY), _ROLE)
-async def show_payments(message: Message):
-    st = _child(message)
-    if not st:
-        await message.answer("❌ Farzandingiz topilmadi.")
-        return
-    await message.answer(
-        f"💳 <b>To'lov ma'lumotlari</b>\n\n"
-        f"👦 {st.get('fullName')}\n"
-        "ℹ️ To'lov tizimi hozircha ulanmagan.\n"
-        "Maktab ma'muriyatiga murojaat qiling."
-    )
 
 
 # ============================================================

@@ -50,37 +50,8 @@ async def show_grades(message: Message):
         await message.answer("❌ Siz topilmadingiz. /start ni bosing.")
         return
 
-    grades = get_grades(st["id"], limit=200)
-    if not grades:
-        await message.answer("📭 Hozircha baholar yo'q.")
-        return
-
-    stats = calc_student_stats(st["id"])
-    text = (
-        f"📊 <b>{st.get('fullName', '—')}</b>\n"
-        f"🏫 {st.get('classId', '—')}\n\n"
-        f"📈 O'rtacha: <b>{stats['avg']}</b>\n"
-        f"📝 Jami: <b>{stats['count']}</b> ta baho\n\n"
-    )
-
-    # Oxirgi 10 ta
-    text += "<b>🕒 Oxirgi baholar:</b>\n"
-    for g in grades[:10]:
-        emoji = score_emoji(g.get("score"))
-        typ = get_type_label(g.get("markType"))
-        date = g.get("date", "—")
-        subj = g.get("subject", "—")
-        val = format_score(g)
-        text += f"{emoji} {date} | <b>{subj}</b> — {val} ({typ})\n"
-
-    # Fan bo'yicha o'rtacha
-    if stats["by_subject"]:
-        text += "\n<b>📚 Fanlar bo'yicha:</b>\n"
-        for subj, avg in sorted(stats["by_subject"].items(),
-                                key=lambda x: -x[1])[:8]:
-            text += f"• {subj}: <b>{avg}</b>\n"
-
-    await message.answer(text)
+    from bot.scheduler.daily_grades import today_grades_text
+    await message.answer(today_grades_text(st, message.from_user.id))
 
 
 # ============================================================

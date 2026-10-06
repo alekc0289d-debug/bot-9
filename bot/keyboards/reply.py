@@ -77,7 +77,6 @@ def parent_menu(tg_id: int):
                 KeyboardButton(text=t("btn_parent_rating", tg_id=tg_id)),
             ],
             [
-                KeyboardButton(text=t("btn_payments", tg_id=tg_id)),
                 KeyboardButton(text=t("btn_contact", tg_id=tg_id)),
             ],
             [
