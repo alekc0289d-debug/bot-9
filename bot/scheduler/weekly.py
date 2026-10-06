@@ -19,6 +19,7 @@ from bot.config import ADMIN_TG_ID
 from bot.utils.db_helpers import (
     get_settings, weekly_ranking, award_weekly_bonus,
 )
+from bot.utils.helpers import TASHKENT_TZ
 
 log = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ def start():
     if _scheduler:
         return _scheduler
 
-    _scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
+    _scheduler = AsyncIOScheduler(timezone=TASHKENT_TZ)
     _scheduler.add_job(monday_schedule, CronTrigger(day_of_week="mon", hour=8),
                        id="monday_schedule")
     _scheduler.add_job(weekly_bonus_and_report,

@@ -25,7 +25,7 @@ from aiogram.exceptions import TelegramForbiddenError
 from bot.config import ADMIN_TG_ID
 from bot.keyboards import inline
 from bot.utils.db_helpers import get_settings, get_monthly_points, get_student, mark_bot_blocked
-from bot.utils.helpers import now_tashkent
+from bot.utils.helpers import now_tashkent, TASHKENT_TZ
 
 log = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ def start():
     if _scheduler:
         return _scheduler
 
-    _scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
+    _scheduler = AsyncIOScheduler(timezone=TASHKENT_TZ)
     # Har oyning OXIRGI kuni (28/29/30/31 — kalendarga qarab) soat 13:00
     _scheduler.add_job(find_monthly_winner, CronTrigger(day="last", hour=13),
                        id="find_monthly_winner")

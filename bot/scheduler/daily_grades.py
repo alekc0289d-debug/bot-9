@@ -31,7 +31,7 @@ from aiogram.exceptions import TelegramForbiddenError
 
 from bot.locales.loader import t
 from bot.utils.db_helpers import get_all_students, get_schedule, get_grades, get_settings, mark_bot_blocked
-from bot.utils.helpers import lesson_num, today_uz, now_tashkent
+from bot.utils.helpers import lesson_num, today_uz, now_tashkent, TASHKENT_TZ
 
 log = logging.getLogger(__name__)
 
@@ -238,7 +238,7 @@ def start():
     if _scheduler:
         return _scheduler
 
-    _scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
+    _scheduler = AsyncIOScheduler(timezone=TASHKENT_TZ)
     _scheduler.add_job(daily_grades_report, CronTrigger(hour=13, minute=0),
                        id="daily_grades_report")
     _scheduler.add_job(unconnected_warning, CronTrigger(hour=13, minute=5),

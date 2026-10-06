@@ -12,7 +12,7 @@ from bot.utils.db_helpers import (
     get_all_students, get_settings, get_schedule,
 )
 from bot.utils.helpers import lesson_num
-from bot.utils.helpers import now_tashkent, today_uz, days_uz
+from bot.utils.helpers import now_tashkent, today_uz, days_uz, TASHKENT_TZ
 
 log = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ def start():
     if _scheduler:
         return _scheduler
 
-    _scheduler = AsyncIOScheduler(timezone="Asia/Tashkent")
+    _scheduler = AsyncIOScheduler(timezone=TASHKENT_TZ)
 
     _scheduler.add_job(send_morning_schedule, CronTrigger(hour=7, minute=0),
                        id="morning_schedule")
