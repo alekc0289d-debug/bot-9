@@ -114,14 +114,16 @@ def start():
 
     _scheduler = AsyncIOScheduler(timezone=TASHKENT_TZ)
 
-    _scheduler.add_job(send_morning_schedule, CronTrigger(hour=7, minute=0),
+    _scheduler.add_job(send_morning_schedule, CronTrigger(hour=7, minute=0, timezone=TASHKENT_TZ),
                        id="morning_schedule")
-    _scheduler.add_job(send_evening_report, CronTrigger(hour=16, minute=0),
+    _scheduler.add_job(send_evening_report, CronTrigger(hour=16, minute=0, timezone=TASHKENT_TZ),
                        id="evening_report")
-    _scheduler.add_job(send_homework_reminder, CronTrigger(hour=18, minute=0),
+    _scheduler.add_job(send_homework_reminder, CronTrigger(hour=18, minute=0, timezone=TASHKENT_TZ),
                        id="homework_reminder")
 
     _scheduler.start()
+    for _j in _scheduler.get_jobs():
+        log.info("⏰ %s — keyingi ishga tushish: %s", _j.id, _j.next_run_time)
     log.info("✅ Kunlik scheduler ishga tushdi")
     return _scheduler
 

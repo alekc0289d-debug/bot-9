@@ -126,7 +126,7 @@ async def show_attendance(message: Message):
         from firebase_client import db
         snap = list(db().collection("attendance")
                     .where("studentId", "==", st["id"])
-                    .limit(100).stream())
+                    .stream())
         records = [{"id": s.id, **s.to_dict()} for s in snap]
     except Exception:
         records = []
@@ -166,7 +166,7 @@ async def show_homework(message: Message):
         class_id = st.get("classId", "9-A")
         snap = list(db().collection("homework")
                     .where("classId", "==", class_id)
-                    .limit(50).stream())
+                    .stream())
         hw = [{"id": s.id, **s.to_dict()} for s in snap]
     except Exception:
         hw = []

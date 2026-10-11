@@ -189,14 +189,30 @@ def get_all_students(class_id: str | None = None, limit: int = 200) -> list:
 # ============================================================
 # BAHOLAR
 # ============================================================
-def get_grades(student_id: str, limit: int = 100) -> list:
+def get_grades(student_id: str, limit: int | None = 100) -> list:
+    """
+    O'quvchining baholari, ENG YANGISI birinchi. limit=None — hammasi.
+
+    DIQQAT: avval so'rovga to'g'ridan-to'g'ri .limit(N) berilardi. Lekin
+    Firestore tartibsiz so'rovda hujjatlarni ID bo'yicha qaytaradi (sana
+    bo'yicha emas), ya'ni "eng yangi N ta" EMAS, "ID bo'yicha birinchi
+    N ta" kelardi. Yangi baholarning ID'si kattaroq bo'lgani uchun,
+    baholar soni limitdan oshgach aynan eng YANGILARI tushib qolardi —
+    o'rtacha va reyting har sinxronlashdan keyin (masalan redeploy'dan
+    keyingi "yetib olish" sinxronida) mantiqsiz o'zgarar, kunlik
+    hisobotda esa bugungi baho "baho yo'q" bo'lib ko'rinardi.
+    Endi hammasi o'qiladi, saralash va kesish Python'da bajariladi
+    (sana bo'yicha tartiblash Firestore'da maxsus indeks talab qiladi).
+    """
     try:
         snap = (db().collection("grades")
-                .where("studentId", "==", student_id)
-                .limit(limit).stream())
+                .where("studentId", "==", student_id).stream())
         grades = [{"id": g.id, **g.to_dict()} for g in snap]
-        grades.sort(key=lambda x: x.get("date", ""), reverse=True)
-        return grades
+        # Sana bo'yicha kamayish; sanalar teng bo'lsa ID bo'yicha — tartib
+        # har safar bir xil bo'lishi uchun
+        grades.sort(key=lambda x: (x.get("date", "") or "", x.get("id", "")),
+                    reverse=True)
+        return grades[:limit] if limit else grades
     except Exception as e:
         log.error("get_grades xato: %s", e)
     return []
@@ -268,10 +284,32 @@ def get_schedule(class_id: str) -> list:
 # ============================================================
 # STATISTIKA
 # ============================================================
+def is_daily_mark(g: dict) -> bool:
+    """
+    Oddiy kunlik baho (10 ballik) — o'rtacha/reytingga FAQAT shular
+    kiradi. Foizli natijalar (masalan "38/50" -> 76) va BSB/CHSB
+    nazorat ishlari alohida shkalada, shuning uchun ularni oddiy
+    baholar bilan qo'shib o'rtacha olib bo'lmaydi.
+
+    Avval hammasi aralash o'rtacha olinardi: 1-10 ballik baholar
+    foizlar (50-100) bilan qo'shilib, 32.45 kabi ma'nosiz son chiqardi
+    va har yangi bahodan keyin sakrab turardi (32.45 -> 31.9 ...).
+    Saytdagi Dashboard va O'quvchi sahifasi bu qoidani allaqachon
+    ishlatgan — endi bot va Reyting sahifasi ham xuddi shunday.
+    """
+    s = g.get("score")
+    if not isinstance(s, (int, float)) or isinstance(s, bool):
+        return False
+    if g.get("isPercent") or s > 10:
+        return False
+    t = (g.get("markType") or "").upper()
+    return "BSB" not in t and "CHSB" not in t
+
+
 def calc_student_stats(student_id: str) -> dict:
-    grades = get_grades(student_id, limit=500)
+    grades = get_grades(student_id, limit=None)
     if not grades:
-        return {"count": 0, "avg": 0, "best": 0, "worst": 0,
+        return {"count": 0, "total": 0, "avg": 0, "best": 0, "worst": 0,
                 "by_subject": {}, "by_type": {}}
 
     scores = []
@@ -280,22 +318,27 @@ def calc_student_stats(student_id: str) -> dict:
 
     for g in grades:
         s = g.get("score")
-        if s is None:
+        if not isinstance(s, (int, float)) or isinstance(s, bool):
             continue
-        if isinstance(s, (int, float)):
+        # Turlar bo'yicha o'rtacha har tur o'z ichida (aralashtirmasdan)
+        mt = g.get("markType", "—")
+        by_type.setdefault(mt, []).append(s)
+        # Umumiy va fan bo'yicha o'rtacha — faqat oddiy kunlik baholardan
+        if is_daily_mark(g):
             scores.append(s)
             subj = g.get("subject", "—")
             by_subject.setdefault(subj, []).append(s)
-            mt = g.get("markType", "—")
-            by_type.setdefault(mt, []).append(s)
 
     avg = round(sum(scores) / len(scores), 2) if scores else 0
 
-    subj_avg = {k: round(sum(v) / len(v), 1) for k, v in by_subject.items()}
+    subj_avg = {k: round(sum(v) / len(v), 2) for k, v in by_subject.items()}
     type_avg = {k: round(sum(v) / len(v), 1) for k, v in by_type.items()}
 
     return {
-        "count": len(grades),
+        # 'count' — o'rtachaga kirgan kunlik baholar soni (ko'rsatilgan
+        # o'rtacha qiymat bilan mos bo'lishi uchun); 'total' — hammasi.
+        "count": len(scores),
+        "total": len(grades),
         "scored": len(scores),
         "avg": avg,
         "best": max(scores) if scores else 0,
@@ -355,9 +398,9 @@ def weekly_ranking(class_id: str, min_grades: int = 1) -> list:
     result = []
     for st in students:
         grades = [
-            g for g in get_grades(st["id"], limit=500)
+            g for g in get_grades(st["id"], limit=None)
             if start <= g.get("date", "") <= today
-            and isinstance(g.get("score"), (int, float))
+            and is_daily_mark(g)
         ]
         if len(grades) < min_grades:
             continue
@@ -441,5 +484,6 @@ def get_rating(class_id: str) -> list:
             "avg": stats["avg"],
             "count": stats["count"],
         })
-    result.sort(key=lambda x: x["avg"], reverse=True)
+    # Teng o'rtachada ko'proq bahosi borlar yuqorida (barqaror tartib)
+    result.sort(key=lambda x: (-x["avg"], -x["count"], (x["fullName"] or "")))
     return result

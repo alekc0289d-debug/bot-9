@@ -114,12 +114,14 @@ def start():
         return _scheduler
 
     _scheduler = AsyncIOScheduler(timezone=TASHKENT_TZ)
-    _scheduler.add_job(monday_schedule, CronTrigger(day_of_week="mon", hour=8),
+    _scheduler.add_job(monday_schedule, CronTrigger(day_of_week="mon", hour=8, timezone=TASHKENT_TZ),
                        id="monday_schedule")
     _scheduler.add_job(weekly_bonus_and_report,
-                       CronTrigger(day_of_week="sun", hour=20),
+                       CronTrigger(day_of_week="sun", hour=20, timezone=TASHKENT_TZ),
                        id="weekly_bonus_and_report")
     _scheduler.start()
+    for _j in _scheduler.get_jobs():
+        log.info("⏰ %s — keyingi ishga tushish: %s", _j.id, _j.next_run_time)
     log.info("✅ Haftalik scheduler ishga tushdi")
     return _scheduler
 

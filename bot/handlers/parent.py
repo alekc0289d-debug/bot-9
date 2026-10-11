@@ -117,7 +117,7 @@ async def show_child_attendance(message: Message):
     try:
         snap = list(db().collection("attendance")
                     .where("studentId", "==", st["id"])
-                    .limit(60).stream())
+                    .stream())
         records = [{"id": s.id, **s.to_dict()} for s in snap]
     except Exception:
         records = []

@@ -103,7 +103,11 @@ def format_score(g: dict) -> str:
     if score is None:
         return raw or "—"
     if is_percent and max_val:
-        return f"{raw}/{max_val} ({score}%)"
+        # raw allaqachon "38/50" ko'rinishida bo'lishi mumkin — ikki marta
+        # "/" qo'shilmasin; max 50.0 emas, 50 ko'rinsin
+        mv = int(max_val) if float(max_val).is_integer() else max_val
+        shown = raw if "/" in str(raw) else f"{raw}/{mv}"
+        return f"{shown} ({score}%)"
     return f"{score}/10"
 
 

@@ -38,5 +38,14 @@ class S:
     # eMaktab HTML'ini debug/ papkaga saqlash (shaxsiy ma'lumot bor!)
     debug_html: bool = os.getenv("EMAKTAB_DEBUG_HTML", "false").lower() == "true"
 
+    # Tungi tanaffus (Toshkent vaqti): shu oraliqda eMaktab'ga AVTOMATIK
+    # kirish (soatlik sync, captcha javoblarini qayta ishlash va
+    # ro'yxatdan o'tishdagi kirish) to'xtatiladi. [start, end) — masalan
+    # 0 va 7 => 00:00 dan 06:59 gacha. Bir xil qiymat berilsa — o'chiriladi.
+    quiet_start_hour: int = int(os.getenv("QUIET_START_HOUR", "0"))
+    quiet_end_hour: int = int(os.getenv("QUIET_END_HOUR", "7"))
+    # Tunda ro'yxatdan o'tishni ham to'xtatish (false — ruxsat berish)
+    quiet_block_register: bool = os.getenv("QUIET_BLOCK_REGISTER", "true").lower() == "true"
+
 
 settings = S()

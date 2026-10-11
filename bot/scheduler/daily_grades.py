@@ -75,6 +75,15 @@ def _subjects_for_day(class_id: str, day_name: str) -> list:
     return subjects
 
 
+def _fmt_mark(g: dict) -> str:
+    """Oddiy baho — shunchaki son ("8"); foizli test — "38/50 (76%)"."""
+    from bot.utils.helpers import format_score
+    if g.get("isPercent"):
+        return format_score(g)
+    v = g.get("score")
+    return str(v if v is not None else g.get("rawValue", "—"))
+
+
 def _today_subjects(class_id: str) -> list:
     return _subjects_for_day(class_id, today_uz())
 
@@ -113,7 +122,7 @@ def today_grades_text(student: dict, tg_id: int, title: str | None = None) -> st
 
 def _build_text(student_id: str, subjects: list, date_str: str, tg_id: int,
                  date_label: str | None = None, title: str | None = None) -> str:
-    day_grades = [g for g in get_grades(student_id, limit=200)
+    day_grades = [g for g in get_grades(student_id, limit=None)
                   if g.get("date") == date_str]
     by_subject: dict = {}
     for g in day_grades:
@@ -125,7 +134,7 @@ def _build_text(student_id: str, subjects: list, date_str: str, tg_id: int,
     for subj in subjects:
         grades = by_subject.get(subj)
         if grades:
-            vals = ", ".join(str(g.get("score", g.get("rawValue", "—"))) for g in grades)
+            vals = ", ".join(_fmt_mark(g) for g in grades)
             lines.append(f"{subj}: <b>{vals}</b>")
         else:
             lines.append(f"{subj}: {t('no_grade_today', tg_id=tg_id)}")
@@ -239,11 +248,13 @@ def start():
         return _scheduler
 
     _scheduler = AsyncIOScheduler(timezone=TASHKENT_TZ)
-    _scheduler.add_job(daily_grades_report, CronTrigger(hour=13, minute=0),
+    _scheduler.add_job(daily_grades_report, CronTrigger(hour=13, minute=0, timezone=TASHKENT_TZ),
                        id="daily_grades_report")
-    _scheduler.add_job(unconnected_warning, CronTrigger(hour=13, minute=5),
+    _scheduler.add_job(unconnected_warning, CronTrigger(hour=13, minute=5, timezone=TASHKENT_TZ),
                        id="unconnected_warning")
     _scheduler.start()
+    for _j in _scheduler.get_jobs():
+        log.info("⏰ %s — keyingi ishga tushish: %s", _j.id, _j.next_run_time)
     log.info("✅ Kundalik baholar scheduleri ishga tushdi")
     return _scheduler
 

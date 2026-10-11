@@ -166,11 +166,13 @@ def start():
 
     _scheduler = AsyncIOScheduler(timezone=TASHKENT_TZ)
     # Har oyning OXIRGI kuni (28/29/30/31 — kalendarga qarab) soat 13:00
-    _scheduler.add_job(find_monthly_winner, CronTrigger(day="last", hour=13),
+    _scheduler.add_job(find_monthly_winner, CronTrigger(day="last", hour=13, timezone=TASHKENT_TZ),
                        id="find_monthly_winner")
-    _scheduler.add_job(month_end_report, CronTrigger(day="last", hour=20),
+    _scheduler.add_job(month_end_report, CronTrigger(day="last", hour=20, timezone=TASHKENT_TZ),
                        id="month_end_report")
     _scheduler.start()
+    for _j in _scheduler.get_jobs():
+        log.info("⏰ %s — keyingi ishga tushish: %s", _j.id, _j.next_run_time)
     log.info("✅ Oylik scheduler ishga tushdi")
     return _scheduler
 
